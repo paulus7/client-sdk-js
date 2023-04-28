@@ -253,7 +253,7 @@ export default abstract class LocalTrack extends Track {
     this.emit(TrackEvent.Ended, this);
   };
 
-  async pauseUpstream() {
+  async pauseUpstream(emitMuteEvent: boolean = true) {
     const unlock = await this.pauseUpstreamLock.lock();
     try {
       if (this._isUpstreamPaused === true) {
@@ -266,6 +266,9 @@ export default abstract class LocalTrack extends Track {
 
       this._isUpstreamPaused = true;
       this.emit(TrackEvent.UpstreamPaused, this);
+      if (emitMuteEvent) {
+        this.emit(TrackEvent.Muted, this, true);
+      }
       const emptyTrack =
         this.kind === Track.Kind.Audio ? getEmptyAudioStreamTrack() : getEmptyVideoStreamTrack();
       await this.sender.replaceTrack(emptyTrack);

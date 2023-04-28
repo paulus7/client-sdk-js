@@ -66,11 +66,11 @@ export default class LocalTrackPublication extends TrackPublication {
 
   /**
    * Pauses the media stream track associated with this publication from being sent to the server
-   * and signals "muted" event to other participants
+   * and signals "muted" event to other participants (unless "emitMuteEvent" is set to false)
    * Useful if you want to pause the stream without pausing the local media stream track
    */
-  async pauseUpstream() {
-    await this.track?.pauseUpstream();
+  async pauseUpstream(emitMuteEvent: boolean = true) {
+    await this.track?.pauseUpstream(emitMuteEvent);
   }
 
   /**
