@@ -267,7 +267,7 @@ export default abstract class LocalTrack extends Track {
       this._isUpstreamPaused = true;
       this.emit(TrackEvent.UpstreamPaused, this);
       if (emitMuteEvent) {
-        this.emit(TrackEvent.Muted, this, true);
+        this.emit(TrackEvent.Muted, this);
       }
       const emptyTrack =
         this.kind === Track.Kind.Audio ? getEmptyAudioStreamTrack() : getEmptyVideoStreamTrack();
