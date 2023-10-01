@@ -1,8 +1,11 @@
+//@ts-ignore
+import E2EEWorker from '../src/e2ee/worker/e2ee.worker?worker';
 import {
   ConnectionQuality,
   ConnectionState,
   DataPacket_Kind,
   DisconnectReason,
+  ExternalE2EEKeyProvider,
   LocalAudioTrack,
   LocalParticipant,
   LogLevel,
@@ -24,8 +27,10 @@ import {
   VideoQuality,
   createAudioAnalyser,
   setLogLevel,
+  supportsAV1,
+  supportsVP9,
 } from '../src/index';
-import { SimulationScenario } from '../src/room/types';
+import type { SimulationScenario } from '../src/room/types';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -35,6 +40,7 @@ const state = {
   decoder: new TextDecoder(),
   defaultDevices: new Map<MediaDeviceKind, string>(),
   bitrateInterval: undefined as any,
+  e2eeKeyProvider: new ExternalE2EEKeyProvider(),
 };
 let currentRoom: Room | undefined;
 
@@ -43,11 +49,17 @@ let startTime: number;
 const searchParams = new URLSearchParams(window.location.search);
 const storedUrl = searchParams.get('url') ?? 'ws://localhost:7880';
 const storedToken = searchParams.get('token') ?? '';
-$<HTMLInputElement>('url').value = storedUrl;
-$<HTMLInputElement>('token').value = storedToken;
+(<HTMLInputElement>$('url')).value = storedUrl;
+(<HTMLInputElement>$('token')).value = storedToken;
+let storedKey = searchParams.get('key');
+if (!storedKey) {
+  (<HTMLSelectElement>$('crypto-key')).value = 'password';
+} else {
+  (<HTMLSelectElement>$('crypto-key')).value = storedKey;
+}
 
-function updateSearchParams(url: string, token: string) {
-  const params = new URLSearchParams({ url, token });
+function updateSearchParams(url: string, token: string, key: string) {
+  const params = new URLSearchParams({ url, token, key });
   window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
 }
 
@@ -62,10 +74,12 @@ const appActions = {
     const adaptiveStream = (<HTMLInputElement>$('adaptive-stream')).checked;
     const shouldPublish = (<HTMLInputElement>$('publish-option')).checked;
     const preferredCodec = (<HTMLSelectElement>$('preferred-codec')).value as VideoCodec;
+    const cryptoKey = (<HTMLSelectElement>$('crypto-key')).value;
     const autoSubscribe = (<HTMLInputElement>$('auto-subscribe')).checked;
+    const e2eeEnabled = (<HTMLInputElement>$('e2ee')).checked;
 
-    setLogLevel(LogLevel.debug);
-    updateSearchParams(url, token);
+    setLogLevel(LogLevel.info);
+    updateSearchParams(url, token, cryptoKey);
 
     const roomOpts: RoomOptions = {
       adaptiveStream,
@@ -74,11 +88,23 @@ const appActions = {
         simulcast,
         videoSimulcastLayers: [VideoPresets.h90, VideoPresets.h216],
         videoCodec: preferredCodec || 'vp8',
+        dtx: true,
+        red: true,
+        forceStereo: false,
       },
       videoCaptureDefaults: {
         resolution: VideoPresets.h720.resolution,
       },
+      e2ee: e2eeEnabled
+        ? { keyProvider: state.e2eeKeyProvider, worker: new E2EEWorker() }
+        : undefined,
     };
+    if (
+      roomOpts.publishDefaults?.videoCodec === 'av1' ||
+      roomOpts.publishDefaults?.videoCodec === 'vp9'
+    ) {
+      roomOpts.publishDefaults.backupCodec = { codec: 'vp8', encoding: VideoPresets.h720.encoding };
+    }
 
     const connectOpts: RoomConnectOptions = {
       autoSubscribe: autoSubscribe,
@@ -103,7 +129,7 @@ const appActions = {
     const room = new Room(roomOptions);
 
     startTime = Date.now();
-    await room.prepareConnection(url);
+    await room.prepareConnection(url, token);
     const prewarmTime = Date.now() - startTime;
     appendLog(`prewarmed connection in ${prewarmTime}ms`);
 
@@ -179,9 +205,26 @@ const appActions = {
           appendLog(`tracks published in ${Date.now() - startTime}ms`);
           updateButtonsForPublishState();
         }
+      })
+      .on(RoomEvent.ParticipantEncryptionStatusChanged, () => {
+        updateButtonsForPublishState();
+      })
+      .on(RoomEvent.TrackStreamStateChanged, (pub, streamState, participant) => {
+        appendLog(
+          `stream state changed for ${pub.trackSid} (${
+            participant.identity
+          }) to ${streamState.toString()}`,
+        );
       });
 
     try {
+      // read and set current key from input
+      const cryptoKey = (<HTMLSelectElement>$('crypto-key')).value;
+      state.e2eeKeyProvider.setKey(cryptoKey);
+      if ((<HTMLInputElement>$('e2ee')).checked) {
+        await room.setE2EEEnabled(true);
+      }
+
       await room.connect(url, token, connectOptions);
       const elapsed = Date.now() - startTime;
       appendLog(
@@ -206,6 +249,24 @@ const appActions = {
     participantConnected(room.localParticipant);
 
     return room;
+  },
+
+  toggleE2EE: async () => {
+    if (!currentRoom || !currentRoom.options.e2ee) {
+      return;
+    }
+    // read and set current key from input
+    const cryptoKey = (<HTMLSelectElement>$('crypto-key')).value;
+    state.e2eeKeyProvider.setKey(cryptoKey);
+
+    await currentRoom.setE2EEEnabled(!currentRoom.isE2EEEnabled);
+  },
+
+  ratchetE2EEKey: async () => {
+    if (!currentRoom || !currentRoom.options.e2ee) {
+      return;
+    }
+    await state.e2eeKeyProvider.ratchetKey();
   },
 
   toggleAudio: async () => {
@@ -385,6 +446,7 @@ function handleData(msg: Uint8Array, participant?: RemoteParticipant) {
 
 function participantConnected(participant: Participant) {
   appendLog('participant', participant.identity, 'connected', participant.metadata);
+  console.log('tracks', participant.tracks);
   participant
     .on(ParticipantEvent.TrackMuted, (pub: TrackPublication) => {
       appendLog('track was muted', pub.trackSid, participant.identity);
@@ -477,6 +539,7 @@ function renderParticipant(participant: Participant, remove: boolean = false) {
         <div class="right">
           <span id="signal-${identity}"></span>
           <span id="mic-${identity}" class="mic-on"></span>
+          <span id="e2ee-${identity}" class="e2ee-on"></span>
         </div>
       </div>
       ${
@@ -583,6 +646,15 @@ function renderParticipant(participant: Participant, remove: boolean = false) {
   } else {
     micElm.className = 'mic-off';
     micElm.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+  }
+
+  const e2eeElm = $(`e2ee-${identity}`)!;
+  if (participant.isEncrypted) {
+    e2eeElm.className = 'e2ee-on';
+    e2eeElm.innerHTML = '<i class="fas fa-lock"></i>';
+  } else {
+    e2eeElm.className = 'e2ee-off';
+    e2eeElm.innerHTML = '<i class="fas fa-unlock"></i>';
   }
 
   switch (participant.connectionQuality) {
@@ -717,6 +789,9 @@ function setButtonsForState(connected: boolean) {
     'flip-video-button',
     'send-button',
   ];
+  if (currentRoom && currentRoom.options.e2ee) {
+    connectedSet.push('toggle-e2ee-button', 'e2ee-ratchet-button');
+  }
   const disconnectedSet = ['connect-button'];
 
   const toRemove = connected ? connectedSet : disconnectedSet;
@@ -790,10 +865,46 @@ function updateButtonsForPublishState() {
     lp.isScreenShareEnabled ? 'Stop Screen Share' : 'Share Screen',
     lp.isScreenShareEnabled,
   );
+
+  // e2ee
+  setButtonState(
+    'toggle-e2ee-button',
+    `${currentRoom.isE2EEEnabled ? 'Disable' : 'Enable'} E2EE`,
+    currentRoom.isE2EEEnabled,
+  );
 }
 
 async function acquireDeviceList() {
   handleDevicesChanged();
 }
 
+function populateSupportedCodecs() {
+  /*
+<option value="" selected>PreferredCodec</option>
+                <option value="vp8">VP8</option>
+                <option value="h264">H.264</option>
+                <option value="vp9">VP9</option>
+                <option value="av1">AV1</option>
+*/
+  const codecSelect = $('preferred-codec');
+  const options: string[][] = [
+    ['', 'Preferred codec'],
+    ['h264', 'H.264'],
+    ['vp8', 'VP8'],
+  ];
+  if (supportsVP9()) {
+    options.push(['vp9', 'VP9']);
+  }
+  if (supportsAV1()) {
+    options.push(['av1', 'AV1']);
+  }
+  for (const o of options) {
+    const n = document.createElement('option');
+    n.value = o[0];
+    n.appendChild(document.createTextNode(o[1]));
+    codecSelect.appendChild(n);
+  }
+}
+
 acquireDeviceList();
+populateSupportedCodecs();

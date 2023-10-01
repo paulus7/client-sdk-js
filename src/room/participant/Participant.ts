@@ -6,9 +6,12 @@ import {
   ParticipantInfo,
   ParticipantPermission,
   ConnectionQuality as ProtoQuality,
-} from '../../proto/livekit_models';
+  SubscriptionError,
+} from '../../proto/livekit_models_pb';
 import { ParticipantEvent, TrackEvent } from '../events';
+import LocalAudioTrack from '../track/LocalAudioTrack';
 import type LocalTrackPublication from '../track/LocalTrackPublication';
+import RemoteAudioTrack from '../track/RemoteAudioTrack';
 import type RemoteTrack from '../track/RemoteTrack';
 import type RemoteTrackPublication from '../track/RemoteTrackPublication';
 import { Track } from '../track/Track';
@@ -67,6 +70,12 @@ export default class Participant extends (EventEmitter as new () => TypedEmitter
   permissions?: ParticipantPermission;
 
   private _connectionQuality: ConnectionQuality = ConnectionQuality.Unknown;
+
+  protected audioContext?: AudioContext;
+
+  get isEncrypted() {
+    return this.tracks.size > 0 && Array.from(this.tracks.values()).every((tr) => tr.isEncrypted);
+  }
 
   /** @internal */
   constructor(sid: string, identity: string, name?: string, metadata?: string) {
@@ -138,7 +147,7 @@ export default class Participant extends (EventEmitter as new () => TypedEmitter
   /** when participant joined the room */
   get joinedAt(): Date | undefined {
     if (this.participantInfo) {
-      return new Date(this.participantInfo.joinedAt * 1000);
+      return new Date(Number.parseInt(this.participantInfo.joinedAt.toString()) * 1000);
     }
     return new Date();
   }
@@ -160,8 +169,8 @@ export default class Participant extends (EventEmitter as new () => TypedEmitter
     }
     this.identity = info.identity;
     this.sid = info.sid;
-    this.setName(info.name);
-    this.setMetadata(info.metadata);
+    this._setName(info.name);
+    this._setMetadata(info.metadata);
     if (info.permission) {
       this.setPermissions(info.permission);
     }
@@ -171,8 +180,10 @@ export default class Participant extends (EventEmitter as new () => TypedEmitter
     return true;
   }
 
-  /** @internal */
-  setMetadata(md: string) {
+  /**
+   * Updates metadata from server
+   **/
+  private _setMetadata(md: string) {
     const changed = this.metadata !== md;
     const prevMetadata = this.metadata;
     this.metadata = md;
@@ -182,7 +193,7 @@ export default class Participant extends (EventEmitter as new () => TypedEmitter
     }
   }
 
-  protected setName(name: string) {
+  private _setName(name: string) {
     const changed = this.name !== name;
     this.name = name;
 
@@ -233,6 +244,18 @@ export default class Participant extends (EventEmitter as new () => TypedEmitter
     }
   }
 
+  /**
+   * @internal
+   */
+  setAudioContext(ctx: AudioContext | undefined) {
+    this.audioContext = ctx;
+    this.audioTracks.forEach(
+      (track) =>
+        (track.track instanceof RemoteAudioTrack || track.track instanceof LocalAudioTrack) &&
+        track.track.setAudioContext(ctx),
+    );
+  }
+
   protected addTrackPublication(publication: TrackPublication) {
     // forward publication driven events
     publication.on(TrackEvent.Muted, () => {
@@ -265,7 +288,7 @@ export default class Participant extends (EventEmitter as new () => TypedEmitter
 export type ParticipantEventCallbacks = {
   trackPublished: (publication: RemoteTrackPublication) => void;
   trackSubscribed: (track: RemoteTrack, publication: RemoteTrackPublication) => void;
-  trackSubscriptionFailed: (trackSid: string) => void;
+  trackSubscriptionFailed: (trackSid: string, reason?: SubscriptionError) => void;
   trackUnpublished: (publication: RemoteTrackPublication) => void;
   trackUnsubscribed: (track: RemoteTrack, publication: RemoteTrackPublication) => void;
   trackMuted: (publication: TrackPublication) => void;

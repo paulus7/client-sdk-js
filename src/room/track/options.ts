@@ -23,9 +23,16 @@ export interface TrackPublishDefaults {
   videoCodec?: VideoCodec;
 
   /**
-   * max audio bitrate, defaults to [[AudioPresets.speech]]
+   * max audio bitrate, defaults to [[AudioPresets.music]]
+   * @deprecated use `audioPreset` instead
    */
   audioBitrate?: number;
+
+  /**
+   * which audio preset should be used for publishing (audio) tracks
+   * defaults to [[AudioPresets.music]]
+   */
+  audioPreset?: AudioPreset;
 
   /**
    * dtx (Discontinuous Transmission of audio), enabled by default for mono tracks.
@@ -38,7 +45,7 @@ export interface TrackPublishDefaults {
   red?: boolean;
 
   /**
-   * stereo audio track. defaults determined by capture channel count.
+   * publish track in stereo mode (or set to false to disable). defaults determined by capture channel count.
    */
   forceStereo?: boolean;
 
@@ -56,10 +63,19 @@ export interface TrackPublishDefaults {
   scalabilityMode?: ScalabilityMode;
 
   /**
-   * custom video simulcast layers for camera tracks, defaults to h180, h360
-   * You can specify up to two custom layers that will be used instead of
-   * the LiveKit default layers.
-   * Note: the layers need to be ordered from lowest to highest quality
+   * Up to two additional simulcast layers to publish in addition to the original
+   * Track.
+   * When left blank, it defaults to h180, h360.
+   * If a SVC codec is used (VP9 or AV1), this field has no effect.
+   *
+   * To publish three total layers, you would specify:
+   * {
+   *   videoEncoding: {...}, // encoding of the primary layer
+   *   videoSimulcastLayers: [
+   *     VideoPresets.h540,
+   *     VideoPresets.h216,
+   *   ],
+   * }
    */
   videoSimulcastLayers?: Array<VideoPreset>;
 
@@ -130,6 +146,12 @@ export interface ScreenShareCaptureOptions {
    * screenshare is limited: https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getDisplayMedia#browser_compatibility
    */
   audio?: boolean | AudioCaptureOptions;
+
+  /**
+   * only allows for 'true' and chrome allows for additional options to be passed in
+   * https://developer.chrome.com/docs/web-platform/screen-sharing-controls/#displaySurface
+   */
+  video?: true | { displaySurface?: 'window' | 'browser' | 'monitor' };
 
   /** capture resolution, defaults to full HD */
   resolution?: VideoResolution;
@@ -215,6 +237,7 @@ export interface VideoResolution {
 export interface VideoEncoding {
   maxBitrate: number;
   maxFramerate?: number;
+  priority?: RTCPriorityType;
 }
 
 export class VideoPreset {
@@ -224,12 +247,19 @@ export class VideoPreset {
 
   height: number;
 
-  constructor(width: number, height: number, maxBitrate: number, maxFramerate?: number) {
+  constructor(
+    width: number,
+    height: number,
+    maxBitrate: number,
+    maxFramerate?: number,
+    priority?: RTCPriorityType,
+  ) {
     this.width = width;
     this.height = height;
     this.encoding = {
       maxBitrate,
       maxFramerate,
+      priority,
     };
   }
 
@@ -245,12 +275,14 @@ export class VideoPreset {
 
 export interface AudioPreset {
   maxBitrate: number;
+  priority?: RTCPriorityType;
 }
 
-const codecs = ['vp8', 'h264', 'vp9', 'av1'] as const;
 const backupCodecs = ['vp8', 'h264'] as const;
 
-export type VideoCodec = (typeof codecs)[number];
+export const videoCodecs = ['vp8', 'h264', 'vp9', 'av1'] as const;
+
+export type VideoCodec = (typeof videoCodecs)[number];
 
 export type BackupVideoCodec = (typeof backupCodecs)[number];
 
@@ -266,9 +298,9 @@ export function isCodecEqual(c1: string | undefined, c2: string | undefined): bo
 }
 
 /**
- * scalability modes for svc, only supprot l3t3 now.
+ * scalability modes for svc.
  */
-export type ScalabilityMode = 'L3T3';
+export type ScalabilityMode = 'L1T3' | 'L2T3' | 'L2T3_KEY' | 'L3T3' | 'L3T3_KEY';
 
 export namespace AudioPresets {
   export const telephone: AudioPreset = {
@@ -295,11 +327,11 @@ export namespace AudioPresets {
  * Sane presets for video resolution/encoding
  */
 export const VideoPresets = {
-  h90: new VideoPreset(160, 90, 60_000, 15),
-  h180: new VideoPreset(320, 180, 120_000, 15),
-  h216: new VideoPreset(384, 216, 180_000, 15),
-  h360: new VideoPreset(640, 360, 300_000, 20),
-  h540: new VideoPreset(960, 540, 600_000, 25),
+  h90: new VideoPreset(160, 90, 90_000, 20),
+  h180: new VideoPreset(320, 180, 160_000, 20),
+  h216: new VideoPreset(384, 216, 180_000, 20),
+  h360: new VideoPreset(640, 360, 450_000, 20),
+  h540: new VideoPreset(960, 540, 800_000, 25),
   h720: new VideoPreset(1280, 720, 1_700_000, 30),
   h1080: new VideoPreset(1920, 1080, 3_000_000, 30),
   h1440: new VideoPreset(2560, 1440, 5_000_000, 30),
@@ -310,21 +342,22 @@ export const VideoPresets = {
  * Four by three presets
  */
 export const VideoPresets43 = {
-  h120: new VideoPreset(160, 120, 80_000, 15),
-  h180: new VideoPreset(240, 180, 100_000, 15),
-  h240: new VideoPreset(320, 240, 150_000, 15),
-  h360: new VideoPreset(480, 360, 225_000, 20),
-  h480: new VideoPreset(640, 480, 300_000, 20),
-  h540: new VideoPreset(720, 540, 450_000, 25),
-  h720: new VideoPreset(960, 720, 1_500_000, 30),
-  h1080: new VideoPreset(1440, 1080, 2_500_000, 30),
-  h1440: new VideoPreset(1920, 1440, 3_500_000, 30),
+  h120: new VideoPreset(160, 120, 70_000, 20),
+  h180: new VideoPreset(240, 180, 125_000, 20),
+  h240: new VideoPreset(320, 240, 140_000, 20),
+  h360: new VideoPreset(480, 360, 330_000, 20),
+  h480: new VideoPreset(640, 480, 500_000, 20),
+  h540: new VideoPreset(720, 540, 600_000, 25),
+  h720: new VideoPreset(960, 720, 1_300_000, 30),
+  h1080: new VideoPreset(1440, 1080, 2_300_000, 30),
+  h1440: new VideoPreset(1920, 1440, 3_800_000, 30),
 } as const;
 
 export const ScreenSharePresets = {
-  h360fps3: new VideoPreset(640, 360, 200_000, 3),
-  h720fps5: new VideoPreset(1280, 720, 400_000, 5),
-  h720fps15: new VideoPreset(1280, 720, 1_000_000, 15),
-  h1080fps15: new VideoPreset(1920, 1080, 1_500_000, 15),
-  h1080fps30: new VideoPreset(1920, 1080, 3_000_000, 30),
+  h360fps3: new VideoPreset(640, 360, 200_000, 3, 'medium'),
+  h720fps5: new VideoPreset(1280, 720, 400_000, 5, 'medium'),
+  h720fps15: new VideoPreset(1280, 720, 1_500_000, 15, 'medium'),
+  h720fps30: new VideoPreset(1280, 720, 2_000_000, 30, 'medium'),
+  h1080fps15: new VideoPreset(1920, 1080, 2_500_000, 15, 'medium'),
+  h1080fps30: new VideoPreset(1920, 1080, 4_000_000, 30, 'medium'),
 } as const;

@@ -68,7 +68,6 @@ export abstract class Checker extends (EventEmitter as new () => TypedEmitter<Ch
       throw Error('check is running already');
     }
     this.setStatus(CheckStatus.RUNNING);
-    this.appendMessage(`${this.name} started.`);
 
     try {
       await this.perform();

@@ -1,4 +1,4 @@
-import type { TrackInfo } from '../../proto/livekit_models';
+import type { TrackInfo } from '../../proto/livekit_models_pb';
 import { TrackEvent } from '../events';
 import type LocalAudioTrack from './LocalAudioTrack';
 import type LocalTrack from './LocalTrack';
@@ -69,8 +69,8 @@ export default class LocalTrackPublication extends TrackPublication {
    * and signals "muted" event to other participants (unless "emitMuteEvent" is set to false)
    * Useful if you want to pause the stream without pausing the local media stream track
    */
-  async pauseUpstream(emitMuteEvent: boolean = true) {
-    await this.track?.pauseUpstream(emitMuteEvent);
+  async pauseUpstream() {
+    await this.track?.pauseUpstream();
   }
 
   /**

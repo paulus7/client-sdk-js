@@ -1,7 +1,7 @@
 import type { SignalClient } from '../../api/SignalClient';
 import log from '../../logger';
-import type { ParticipantInfo } from '../../proto/livekit_models';
-import type { UpdateSubscription, UpdateTrackSettings } from '../../proto/livekit_rtc';
+import type { ParticipantInfo, SubscriptionError } from '../../proto/livekit_models_pb';
+import type { UpdateSubscription, UpdateTrackSettings } from '../../proto/livekit_rtc_pb';
 import { ParticipantEvent, TrackEvent } from '../events';
 import RemoteAudioTrack from '../track/RemoteAudioTrack';
 import type RemoteTrack from '../track/RemoteTrack';
@@ -11,7 +11,8 @@ import { Track } from '../track/Track';
 import type { TrackPublication } from '../track/TrackPublication';
 import type { AudioOutputOptions } from '../track/options';
 import type { AdaptiveStreamSettings } from '../track/types';
-import Participant, { ParticipantEventCallbacks } from './Participant';
+import Participant from './Participant';
+import type { ParticipantEventCallbacks } from './Participant';
 
 export default class RemoteParticipant extends Participant {
   audioTracks: Map<string, RemoteTrackPublication>;
@@ -22,9 +23,7 @@ export default class RemoteParticipant extends Participant {
 
   signalClient: SignalClient;
 
-  private volume?: number;
-
-  private audioContext?: AudioContext;
+  private volumeMap: Map<Track.Source, number>;
 
   private audioOutput?: AudioOutputOptions;
 
@@ -46,6 +45,7 @@ export default class RemoteParticipant extends Participant {
     this.tracks = new Map();
     this.audioTracks = new Map();
     this.videoTracks = new Map();
+    this.volumeMap = new Map();
   }
 
   protected addTrackPublication(publication: RemoteTrackPublication) {
@@ -80,6 +80,9 @@ export default class RemoteParticipant extends Participant {
     publication.on(TrackEvent.Unsubscribed, (previousTrack: RemoteTrack) => {
       this.emit(ParticipantEvent.TrackUnsubscribed, previousTrack, publication);
     });
+    publication.on(TrackEvent.SubscriptionFailed, (error: SubscriptionError) => {
+      this.emit(ParticipantEvent.TrackSubscriptionFailed, publication.trackSid, error);
+    });
   }
 
   getTrack(source: Track.Source): RemoteTrackPublication | undefined {
@@ -97,12 +100,17 @@ export default class RemoteParticipant extends Participant {
   }
 
   /**
-   * sets the volume on the participant's microphone track
+   * sets the volume on the participant's audio track
+   * by default, this affects the microphone publication
+   * a different source can be passed in as a second argument
    * if no track exists the volume will be applied when the microphone track is added
    */
-  setVolume(volume: number) {
-    this.volume = volume;
-    const audioPublication = this.getTrack(Track.Source.Microphone);
+  setVolume(
+    volume: number,
+    source: Track.Source.Microphone | Track.Source.ScreenShareAudio = Track.Source.Microphone,
+  ) {
+    this.volumeMap.set(source, volume);
+    const audioPublication = this.getTrack(source);
     if (audioPublication && audioPublication.track) {
       (audioPublication.track as RemoteAudioTrack).setVolume(volume);
     }
@@ -111,12 +119,14 @@ export default class RemoteParticipant extends Participant {
   /**
    * gets the volume on the participant's microphone track
    */
-  getVolume() {
-    const audioPublication = this.getTrack(Track.Source.Microphone);
+  getVolume(
+    source: Track.Source.Microphone | Track.Source.ScreenShareAudio = Track.Source.Microphone,
+  ) {
+    const audioPublication = this.getTrack(source);
     if (audioPublication && audioPublication.track) {
       return (audioPublication.track as RemoteAudioTrack).getVolume();
     }
-    return this.volume;
+    return this.volumeMap.get(source);
   }
 
   /** @internal */
@@ -193,13 +203,9 @@ export default class RemoteParticipant extends Participant {
     track.start();
 
     publication.setTrack(track);
-    // set participant volume on new microphone tracks
-    if (
-      this.volume !== undefined &&
-      track instanceof RemoteAudioTrack &&
-      track.source === Track.Source.Microphone
-    ) {
-      track.setVolume(this.volume);
+    // set participant volumes on new audio tracks
+    if (this.volumeMap.has(publication.source) && track instanceof RemoteAudioTrack) {
+      track.setVolume(this.volumeMap.get(publication.source)!);
     }
 
     return publication;
@@ -289,6 +295,14 @@ export default class RemoteParticipant extends Participant {
       return;
     }
 
+    // also send unsubscribe, if track is actively subscribed
+    const { track } = publication;
+    if (track) {
+      track.stop();
+      publication.setTrack(undefined);
+    }
+
+    // remove track from maps only after unsubscribed has been fired
     this.tracks.delete(sid);
 
     // remove from the right type map
@@ -303,25 +317,9 @@ export default class RemoteParticipant extends Participant {
         break;
     }
 
-    // also send unsubscribe, if track is actively subscribed
-    const { track } = publication;
-    if (track) {
-      track.stop();
-      publication.setTrack(undefined);
-    }
     if (sendUnpublish) {
       this.emit(ParticipantEvent.TrackUnpublished, publication);
     }
-  }
-
-  /**
-   * @internal
-   */
-  setAudioContext(ctx: AudioContext | undefined) {
-    this.audioContext = ctx;
-    this.audioTracks.forEach(
-      (track) => track.track instanceof RemoteAudioTrack && track.track.setAudioContext(ctx),
-    );
   }
 
   /**

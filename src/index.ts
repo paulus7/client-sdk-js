@@ -1,5 +1,5 @@
 import { LogLevel, setLogExtension, setLogLevel } from './logger';
-import { DataPacket_Kind, DisconnectReason, VideoQuality } from './proto/livekit_models';
+import { DataPacket_Kind, DisconnectReason, VideoQuality } from './proto/livekit_models_pb';
 import DefaultReconnectPolicy from './room/DefaultReconnectPolicy';
 import Room, { ConnectionState, RoomState } from './room/Room';
 import LocalParticipant from './room/participant/LocalParticipant';
@@ -14,11 +14,12 @@ import LocalVideoTrack from './room/track/LocalVideoTrack';
 import RemoteAudioTrack from './room/track/RemoteAudioTrack';
 import RemoteTrack from './room/track/RemoteTrack';
 import RemoteTrackPublication from './room/track/RemoteTrackPublication';
-import RemoteVideoTrack, { type ElementInfo } from './room/track/RemoteVideoTrack';
+import type { ElementInfo } from './room/track/RemoteVideoTrack';
+import RemoteVideoTrack from './room/track/RemoteVideoTrack';
 import { TrackPublication } from './room/track/TrackPublication';
 import type { LiveKitReactNativeInfo } from './room/types';
+import type { AudioAnalyserOptions } from './room/utils';
 import {
-  type AudioAnalyserOptions,
   createAudioAnalyser,
   getEmptyAudioStreamTrack,
   getEmptyVideoStreamTrack,
@@ -26,18 +27,22 @@ import {
   supportsAV1,
   supportsAdaptiveStream,
   supportsDynacast,
+  supportsVP9,
 } from './room/utils';
 
+export * from './connectionHelper/ConnectionCheck';
 export * from './options';
 export * from './room/errors';
 export * from './room/events';
-export type { DataPublishOptions, SimulationScenario } from './room/types';
+export * from './room/track/Track';
 export * from './room/track/create';
 export * from './room/track/options';
-export * from './room/track/Track';
+export { facingModeFromDeviceLabel, facingModeFromLocalTrack } from './room/track/facingMode';
 export * from './room/track/types';
+export type { DataPublishOptions, SimulationScenario } from './room/types';
 export * from './version';
-export * from './connectionHelper/ConnectionCheck';
+export * from './e2ee';
+export * from './room/track/processor/types';
 export {
   setLogLevel,
   setLogExtension,
@@ -47,8 +52,8 @@ export {
   supportsAdaptiveStream,
   supportsDynacast,
   supportsAV1,
+  supportsVP9,
   createAudioAnalyser,
-  AudioAnalyserOptions,
   LogLevel,
   Room,
   ConnectionState,
@@ -66,12 +71,15 @@ export {
   RemoteAudioTrack,
   RemoteVideoTrack,
   RemoteTrackPublication,
-  ParticipantTrackPermission,
   TrackPublication,
   VideoQuality,
   ConnectionQuality,
-  ElementInfo,
   DefaultReconnectPolicy,
   CriticalTimers,
+};
+export type {
+  ElementInfo,
+  ParticipantTrackPermission,
+  AudioAnalyserOptions,
   LiveKitReactNativeInfo,
 };

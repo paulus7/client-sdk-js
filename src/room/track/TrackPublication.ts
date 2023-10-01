@@ -1,8 +1,9 @@
 import { EventEmitter } from 'events';
 import type TypedEventEmitter from 'typed-emitter';
 import log from '../../logger';
-import type { TrackInfo } from '../../proto/livekit_models';
-import type { UpdateSubscription, UpdateTrackSettings } from '../../proto/livekit_rtc';
+import { Encryption_Type } from '../../proto/livekit_models_pb';
+import type { SubscriptionError, TrackInfo } from '../../proto/livekit_models_pb';
+import type { UpdateSubscription, UpdateTrackSettings } from '../../proto/livekit_rtc_pb';
 import { TrackEvent } from '../events';
 import LocalAudioTrack from './LocalAudioTrack';
 import LocalVideoTrack from './LocalVideoTrack';
@@ -35,6 +36,8 @@ export class TrackPublication extends (EventEmitter as new () => TypedEventEmitt
   trackInfo?: TrackInfo;
 
   protected metadataMuted: boolean = false;
+
+  protected encryption: Encryption_Type = Encryption_Type.NONE;
 
   constructor(kind: Track.Kind, id: string, name: string) {
     super();
@@ -71,6 +74,10 @@ export class TrackPublication extends (EventEmitter as new () => TypedEventEmitt
 
   get isSubscribed(): boolean {
     return this.track !== undefined;
+  }
+
+  get isEncrypted(): boolean {
+    return this.encryption !== Encryption_Type.NONE;
   }
 
   /**
@@ -112,8 +119,9 @@ export class TrackPublication extends (EventEmitter as new () => TypedEventEmitt
       };
       this.simulcasted = info.simulcast;
     }
+    this.encryption = info.encryption;
     this.trackInfo = info;
-    log.trace('update publication info', { info });
+    log.debug('update publication info', { info });
   }
 }
 
@@ -146,4 +154,5 @@ export type PublicationEventCallbacks = {
     status: TrackPublication.SubscriptionStatus,
     prevStatus: TrackPublication.SubscriptionStatus,
   ) => void;
+  subscriptionFailed: (error: SubscriptionError) => void;
 };
