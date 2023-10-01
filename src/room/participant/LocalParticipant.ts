@@ -1212,8 +1212,7 @@ export default class LocalParticipant extends Participant {
   };
 
   private onTrackUpstreamResumed = (track: LocalTrack) => {
-    log.debug('upstream resumed');
-    this.onTrackMuted(track, track.isMuted);
+    log.debug('upstream resumed', track);
   };
 
   private handleSubscribedQualityUpdate = async (update: SubscribedQualityUpdate) => {
