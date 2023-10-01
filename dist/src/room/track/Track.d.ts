@@ -1,7 +1,7 @@
 import type TypedEventEmitter from 'typed-emitter';
 import type { SignalClient } from '../../api/SignalClient';
-import { TrackSource, TrackType } from '../../proto/livekit_models';
-import { StreamState as ProtoStreamState } from '../../proto/livekit_rtc';
+import { TrackSource, TrackType } from '../../proto/livekit_models_pb';
+import { StreamState as ProtoStreamState } from '../../proto/livekit_rtc_pb';
 declare const Track_base: new () => TypedEventEmitter<TrackEventCallbacks>;
 export declare abstract class Track extends Track_base {
     kind: Track.Kind;

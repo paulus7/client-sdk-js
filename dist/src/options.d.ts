@@ -1,3 +1,4 @@
+import type { E2EEOptions } from './e2ee/types';
 import type { ReconnectPolicy } from './room/ReconnectPolicy';
 import type { AudioCaptureOptions, AudioOutputOptions, TrackPublishDefaults, VideoCaptureOptions } from './room/track/options';
 import type { AdaptiveStreamSettings } from './room/track/types';
@@ -22,6 +23,9 @@ export interface InternalRoomOptions {
      * enable Dynacast, off by default. With Dynacast dynamically pauses
      * video layers that are not being consumed by any subscribers, significantly
      * reducing publishing CPU and bandwidth usage.
+     *
+     * Dynacast will be enabled if SVC codecs (VP9/AV1) are used. Multi-codec simulcast
+     * requires dynacast
      */
     dynacast: boolean;
     /**
@@ -65,6 +69,10 @@ export interface InternalRoomOptions {
      * experimental flag, mix all audio tracks in web audio
      */
     expWebAudioMix: boolean | WebAudioSettings;
+    /**
+     * @experimental
+     */
+    e2ee?: E2EEOptions;
 }
 /**
  * Options for when creating a new room
@@ -90,6 +98,8 @@ export interface InternalRoomConnectOptions {
     publishOnly?: string;
     /** specifies how often an initial join connection is allowed to retry (only applicable if server is not reachable) */
     maxRetries: number;
+    /** amount of time for Websocket connection to be established, defaults to 15s */
+    websocketTimeout: number;
 }
 /**
  * Options for Room.connect()

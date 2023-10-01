@@ -1,9 +1,11 @@
 import type { SignalClient } from '../../api/SignalClient';
-import { VideoLayer, VideoQuality } from '../../proto/livekit_models';
-import type { SubscribedCodec, SubscribedQuality } from '../../proto/livekit_rtc';
-import { VideoSenderStats } from '../stats';
+import { VideoLayer, VideoQuality } from '../../proto/livekit_models_pb';
+import { SubscribedCodec, SubscribedQuality } from '../../proto/livekit_rtc_pb';
+import type { VideoSenderStats } from '../stats';
 import LocalTrack from './LocalTrack';
+import { Track } from './Track';
 import type { VideoCaptureOptions, VideoCodec } from './options';
+import type { TrackProcessor } from './processor/types';
 export declare class SimulcastTrackInfo {
     codec: VideoCodec;
     mediaStreamTrack: MediaStreamTrack;
@@ -28,12 +30,16 @@ export default class LocalVideoTrack extends LocalTrack {
     get isSimulcast(): boolean;
     startMonitor(signalClient: SignalClient): void;
     stop(): void;
+    pauseUpstream(): Promise<void>;
+    resumeUpstream(): Promise<void>;
     mute(): Promise<LocalVideoTrack>;
     unmute(): Promise<LocalVideoTrack>;
+    protected setTrackMuted(muted: boolean): void;
     getSenderStats(): Promise<VideoSenderStats[]>;
     setPublishingQuality(maxQuality: VideoQuality): void;
-    setDeviceId(deviceId: ConstrainDOMString): Promise<void>;
+    setDeviceId(deviceId: ConstrainDOMString): Promise<boolean>;
     restartTrack(options?: VideoCaptureOptions): Promise<void>;
+    setProcessor(processor: TrackProcessor<Track.Kind>, showProcessedStreamLocally?: boolean): Promise<void>;
     addSimulcastTrack(codec: VideoCodec, encodings?: RTCRtpEncodingParameters[]): SimulcastTrackInfo;
     setSimulcastTrackSender(codec: VideoCodec, sender: RTCRtpSender): void;
     /**
@@ -50,5 +56,5 @@ export default class LocalVideoTrack extends LocalTrack {
     protected handleAppVisibilityChanged(): Promise<void>;
 }
 export declare function videoQualityForRid(rid: string): VideoQuality;
-export declare function videoLayersFromEncodings(width: number, height: number, encodings?: RTCRtpEncodingParameters[]): VideoLayer[];
+export declare function videoLayersFromEncodings(width: number, height: number, encodings?: RTCRtpEncodingParameters[], svc?: boolean): VideoLayer[];
 //# sourceMappingURL=LocalVideoTrack.d.ts.map

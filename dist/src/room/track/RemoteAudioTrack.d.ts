@@ -1,4 +1,4 @@
-import { AudioReceiverStats } from '../stats';
+import type { AudioReceiverStats } from '../stats';
 import RemoteTrack from './RemoteTrack';
 import type { AudioOutputOptions } from './options';
 export default class RemoteAudioTrack extends RemoteTrack {

@@ -1,4 +1,4 @@
-import type { TrackInfo } from '../../proto/livekit_models';
+import type { TrackInfo } from '../../proto/livekit_models_pb';
 import type LocalAudioTrack from './LocalAudioTrack';
 import type LocalTrack from './LocalTrack';
 import type LocalVideoTrack from './LocalVideoTrack';
@@ -27,7 +27,7 @@ export default class LocalTrackPublication extends TrackPublication {
      * and signals "muted" event to other participants (unless "emitMuteEvent" is set to false)
      * Useful if you want to pause the stream without pausing the local media stream track
      */
-    pauseUpstream(emitMuteEvent?: boolean): Promise<void>;
+    pauseUpstream(): Promise<void>;
     /**
      * Resumes sending the media stream track associated with this publication to the server after a call to [[pauseUpstream()]]
      * and signals "unmuted" event to other participants (unless the track is explicitly muted)

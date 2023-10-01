@@ -239,11 +239,18 @@ export declare enum RoomEvent {
      * args: (isRecording: boolean)
      */
     RecordingStatusChanged = "recordingStatusChanged",
+    ParticipantEncryptionStatusChanged = "participantEncryptionStatusChanged",
+    EncryptionError = "encryptionError",
     /**
      * Emits whenever the current buffer status of a data channel changes
      * args: (isLow: boolean, kind: [[DataPacket_Kind]])
      */
-    DCBufferStatusChanged = "dcBufferStatusChanged"
+    DCBufferStatusChanged = "dcBufferStatusChanged",
+    /**
+     * Triggered by a call to room.switchActiveDevice
+     * args: (kind: MediaDeviceKind, deviceId: string)
+     */
+    ActiveDeviceChanged = "activeDeviceChanged"
 }
 export declare enum ParticipantEvent {
     /**
@@ -382,7 +389,9 @@ export declare enum ParticipantEvent {
      * A participant's permission has changed. Currently only fired on LocalParticipant.
      * args: (prevPermissions: [[ParticipantPermission]])
      */
-    ParticipantPermissionsChanged = "participantPermissionsChanged"
+    ParticipantPermissionsChanged = "participantPermissionsChanged",
+    /** @internal */
+    PCTrackAdded = "pcTrackAdded"
 }
 /** @internal */
 export declare enum EngineEvent {
@@ -399,7 +408,15 @@ export declare enum EngineEvent {
     MediaTrackAdded = "mediaTrackAdded",
     ActiveSpeakersUpdate = "activeSpeakersUpdate",
     DataPacketReceived = "dataPacketReceived",
-    DCBufferStatusChanged = "dcBufferStatusChanged"
+    RTPVideoMapUpdate = "rtpVideoMapUpdate",
+    DCBufferStatusChanged = "dcBufferStatusChanged",
+    ParticipantUpdate = "participantUpdate",
+    RoomUpdate = "roomUpdate",
+    SpeakersChanged = "speakersChanged",
+    StreamStateChanged = "streamStateChanged",
+    ConnectionQualityUpdate = "connectionQualityUpdate",
+    SubscriptionError = "subscriptionError",
+    SubscriptionPermissionUpdate = "subscriptionPermissionUpdate"
 }
 export declare enum TrackEvent {
     Message = "message",
@@ -451,6 +468,10 @@ export declare enum TrackEvent {
     /**
      * Fires on RemoteTrackPublication
      */
-    SubscriptionStatusChanged = "subscriptionStatusChanged"
+    SubscriptionStatusChanged = "subscriptionStatusChanged",
+    /**
+     * Fires on RemoteTrackPublication
+     */
+    SubscriptionFailed = "subscriptionFailed"
 }
 //# sourceMappingURL=events.d.ts.map

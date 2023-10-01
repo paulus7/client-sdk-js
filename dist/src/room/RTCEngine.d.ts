@@ -1,13 +1,16 @@
 import type TypedEventEmitter from 'typed-emitter';
-import { SignalClient, SignalOptions } from '../api/SignalClient';
+import type { SignalOptions } from '../api/SignalClient';
+import { SignalClient } from '../api/SignalClient';
 import type { InternalRoomOptions } from '../options';
-import { DataPacket, DataPacket_Kind, DisconnectReason, SpeakerInfo, TrackInfo, UserPacket } from '../proto/livekit_models';
-import { AddTrackRequest, JoinResponse } from '../proto/livekit_rtc';
+import { DataPacket, DataPacket_Kind, DisconnectReason, ParticipantInfo, Room as RoomModel, SpeakerInfo, TrackInfo, UserPacket } from '../proto/livekit_models_pb';
+import { AddTrackRequest, ConnectionQualityUpdate, JoinResponse, StreamStateUpdate, SubscriptionPermissionUpdate, SubscriptionResponse } from '../proto/livekit_rtc_pb';
 import PCTransport from './PCTransport';
+import type { RegionUrlProvider } from './RegionUrlProvider';
 import type LocalTrack from './track/LocalTrack';
 import type LocalVideoTrack from './track/LocalVideoTrack';
 import type { SimulcastTrackInfo } from './track/LocalVideoTrack';
-import type { TrackPublishOptions } from './track/options';
+import { Track } from './track/Track';
+import type { TrackPublishOptions, VideoCodec } from './track/options';
 declare const RTCEngine_base: new () => TypedEventEmitter<EngineEventCallbacks>;
 /** @internal */
 export default class RTCEngine extends RTCEngine_base {
@@ -18,6 +21,10 @@ export default class RTCEngine extends RTCEngine_base {
     rtcConfig: RTCConfiguration;
     peerConnectionTimeout: number;
     fullReconnectOnNext: boolean;
+    /**
+     * @internal
+     */
+    latestJoinResponse?: JoinResponse;
     get isClosed(): boolean;
     private lossyDC?;
     private lossyDCSub?;
@@ -51,6 +58,8 @@ export default class RTCEngine extends RTCEngine_base {
     constructor(options: InternalRoomOptions);
     join(url: string, token: string, opts: SignalOptions, abortSignal?: AbortSignal): Promise<JoinResponse>;
     close(): Promise<void>;
+    cleanupPeerConnections(): Promise<void>;
+    cleanupClient(): Promise<void>;
     addTrack(req: AddTrackRequest): Promise<TrackInfo>;
     /**
      * Removes sender from PeerConnection, returning true if it was removed successfully
@@ -62,7 +71,9 @@ export default class RTCEngine extends RTCEngine_base {
     updateMuteStatus(trackSid: string, muted: boolean): void;
     get dataSubscriberReadyState(): string | undefined;
     getConnectedServerAddress(): Promise<string | undefined>;
+    setRegionUrlProvider(provider: RegionUrlProvider): void;
     private configure;
+    private setupSignalClientCallbacks;
     private makeRTCConfiguration;
     private createDataChannels;
     private handleDataChannel;
@@ -91,6 +102,7 @@ export default class RTCEngine extends RTCEngine_base {
      */
     ensureDataTransportConnected(kind: DataPacket_Kind, subscriber?: boolean): Promise<void>;
     private ensurePublisherConnected;
+    verifyTransport(): boolean;
     /** @internal */
     negotiate(): Promise<void>;
     dataChannelForKind(kind: DataPacket_Kind, sub?: boolean): RTCDataChannel | undefined;
@@ -115,7 +127,17 @@ export type EngineEventCallbacks = {
     activeSpeakersUpdate: (speakers: Array<SpeakerInfo>) => void;
     dataPacketReceived: (userPacket: UserPacket, kind: DataPacket_Kind) => void;
     transportsCreated: (publisher: PCTransport, subscriber: PCTransport) => void;
+    /** @internal */
+    trackSenderAdded: (track: Track, sender: RTCRtpSender) => void;
+    rtpVideoMapUpdate: (rtpMap: Map<number, VideoCodec>) => void;
     dcBufferStatusChanged: (isLow: boolean, kind: DataPacket_Kind) => void;
+    participantUpdate: (infos: ParticipantInfo[]) => void;
+    roomUpdate: (room: RoomModel) => void;
+    connectionQualityUpdate: (update: ConnectionQualityUpdate) => void;
+    speakersChanged: (speakerUpdates: SpeakerInfo[]) => void;
+    streamStateChanged: (update: StreamStateUpdate) => void;
+    subscriptionError: (resp: SubscriptionResponse) => void;
+    subscriptionPermissionUpdate: (update: SubscriptionPermissionUpdate) => void;
 };
 export {};
 //# sourceMappingURL=RTCEngine.d.ts.map

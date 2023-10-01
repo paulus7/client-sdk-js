@@ -1,6 +1,7 @@
 import type TypedEventEmitter from 'typed-emitter';
-import type { TrackInfo } from '../../proto/livekit_models';
-import type { UpdateSubscription, UpdateTrackSettings } from '../../proto/livekit_rtc';
+import { Encryption_Type } from '../../proto/livekit_models_pb';
+import type { SubscriptionError, TrackInfo } from '../../proto/livekit_models_pb';
+import type { UpdateSubscription, UpdateTrackSettings } from '../../proto/livekit_rtc_pb';
 import LocalAudioTrack from './LocalAudioTrack';
 import LocalVideoTrack from './LocalVideoTrack';
 import RemoteAudioTrack from './RemoteAudioTrack';
@@ -23,12 +24,14 @@ export declare class TrackPublication extends TrackPublication_base {
     /** @internal */
     trackInfo?: TrackInfo;
     protected metadataMuted: boolean;
+    protected encryption: Encryption_Type;
     constructor(kind: Track.Kind, id: string, name: string);
     /** @internal */
     setTrack(track?: Track): void;
     get isMuted(): boolean;
     get isEnabled(): boolean;
     get isSubscribed(): boolean;
+    get isEncrypted(): boolean;
     /**
      * an [AudioTrack] if this publication holds an audio track
      */
@@ -63,6 +66,7 @@ export type PublicationEventCallbacks = {
     subscribed: (track: RemoteTrack) => void;
     unsubscribed: (track: RemoteTrack) => void;
     subscriptionStatusChanged: (status: TrackPublication.SubscriptionStatus, prevStatus: TrackPublication.SubscriptionStatus) => void;
+    subscriptionFailed: (error: SubscriptionError) => void;
 };
 export {};
 //# sourceMappingURL=TrackPublication.d.ts.map

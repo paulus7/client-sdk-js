@@ -6,9 +6,11 @@ export default class RemoteVideoTrack extends RemoteTrack {
     private adaptiveStreamSettings?;
     private lastVisible?;
     private lastDimensions?;
-    private isObserved;
     constructor(mediaTrack: MediaStreamTrack, sid: string, receiver?: RTCRtpReceiver, adaptiveStreamSettings?: AdaptiveStreamSettings);
     get isAdaptiveStream(): boolean;
+    /**
+     * Note: When using adaptiveStream, you need to use remoteVideoTrack.attach() to add the track to a HTMLVideoElement, otherwise your video tracks might never start
+     */
     get mediaStreamTrack(): MediaStreamTrack;
     /** @internal */
     setMuted(muted: boolean): void;
@@ -37,6 +39,7 @@ export default class RemoteVideoTrack extends RemoteTrack {
     private readonly debouncedHandleResize;
     private updateVisibility;
     private updateDimensions;
+    private getPixelDensity;
 }
 export interface ElementInfo {
     element: object;

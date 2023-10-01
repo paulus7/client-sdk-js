@@ -1,17 +1,17 @@
 import type { SignalClient } from '../../api/SignalClient';
-import type { ParticipantInfo } from '../../proto/livekit_models';
+import type { ParticipantInfo } from '../../proto/livekit_models_pb';
 import RemoteTrackPublication from '../track/RemoteTrackPublication';
 import { Track } from '../track/Track';
 import type { AudioOutputOptions } from '../track/options';
 import type { AdaptiveStreamSettings } from '../track/types';
-import Participant, { ParticipantEventCallbacks } from './Participant';
+import Participant from './Participant';
+import type { ParticipantEventCallbacks } from './Participant';
 export default class RemoteParticipant extends Participant {
     audioTracks: Map<string, RemoteTrackPublication>;
     videoTracks: Map<string, RemoteTrackPublication>;
     tracks: Map<string, RemoteTrackPublication>;
     signalClient: SignalClient;
-    private volume?;
-    private audioContext?;
+    private volumeMap;
     private audioOutput?;
     /** @internal */
     static fromParticipantInfo(signalClient: SignalClient, pi: ParticipantInfo): RemoteParticipant;
@@ -21,14 +21,16 @@ export default class RemoteParticipant extends Participant {
     getTrack(source: Track.Source): RemoteTrackPublication | undefined;
     getTrackByName(name: string): RemoteTrackPublication | undefined;
     /**
-     * sets the volume on the participant's microphone track
+     * sets the volume on the participant's audio track
+     * by default, this affects the microphone publication
+     * a different source can be passed in as a second argument
      * if no track exists the volume will be applied when the microphone track is added
      */
-    setVolume(volume: number): void;
+    setVolume(volume: number, source?: Track.Source.Microphone | Track.Source.ScreenShareAudio): void;
     /**
      * gets the volume on the participant's microphone track
      */
-    getVolume(): number | undefined;
+    getVolume(source?: Track.Source.Microphone | Track.Source.ScreenShareAudio): number | undefined;
     /** @internal */
     addSubscribedMediaTrack(mediaTrack: MediaStreamTrack, sid: Track.SID, mediaStream: MediaStream, receiver?: RTCRtpReceiver, adaptiveStreamSettings?: AdaptiveStreamSettings, triesLeft?: number): RemoteTrackPublication | undefined;
     /** @internal */
@@ -38,10 +40,6 @@ export default class RemoteParticipant extends Participant {
     updateInfo(info: ParticipantInfo): boolean;
     /** @internal */
     unpublishTrack(sid: Track.SID, sendUnpublish?: boolean): void;
-    /**
-     * @internal
-     */
-    setAudioContext(ctx: AudioContext | undefined): void;
     /**
      * @internal
      */

@@ -1,5 +1,6 @@
 import type TypedEmitter from 'typed-emitter';
-import { CheckInfo, CheckStatus, Checker, InstantiableCheck } from './checks/Checker';
+import { CheckStatus, Checker } from './checks/Checker';
+import type { CheckInfo, InstantiableCheck } from './checks/Checker';
 export type { CheckInfo, CheckStatus };
 declare const ConnectionCheck_base: new () => TypedEmitter<ConnectionCheckCallbacks>;
 export declare class ConnectionCheck extends ConnectionCheck_base {

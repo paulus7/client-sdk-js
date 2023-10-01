@@ -1,18 +1,21 @@
 /// <reference types="node" />
-import EventEmitter from 'events';
+import { EventEmitter } from 'events';
 /** @internal */
 interface TrackBitrateInfo {
-    sid: string;
+    cid?: string;
+    transceiver?: RTCRtpTransceiver;
     codec: string;
     maxbr: number;
 }
 export declare const PCEvents: {
     readonly NegotiationStarted: "negotiationStarted";
     readonly NegotiationComplete: "negotiationComplete";
+    readonly RTPVideoPayloadTypes: "rtpVideoPayloadTypes";
 };
 /** @internal */
 export default class PCTransport extends EventEmitter {
-    pc: RTCPeerConnection;
+    private _pc;
+    get pc(): RTCPeerConnection;
     pendingCandidates: RTCIceCandidateInit[];
     restartingIce: boolean;
     renegotiate: boolean;
@@ -20,7 +23,7 @@ export default class PCTransport extends EventEmitter {
     remoteStereoMids: string[];
     remoteNackMids: string[];
     onOffer?: (offer: RTCSessionDescriptionInit) => void;
-    constructor(config?: RTCConfiguration);
+    constructor(config?: RTCConfiguration, mediaConstraints?: Record<string, unknown>);
     get isICEConnected(): boolean;
     addIceCandidate(candidate: RTCIceCandidateInit): Promise<void>;
     setRemoteDescription(sd: RTCSessionDescriptionInit): Promise<void>;
@@ -32,9 +35,9 @@ export default class PCTransport extends EventEmitter {
     };
     createAndSendOffer(options?: RTCOfferOptions): Promise<void>;
     createAndSetAnswer(): Promise<RTCSessionDescriptionInit>;
-    setTrackCodecBitrate(sid: string, codec: string, maxbr: number): void;
+    setTrackCodecBitrate(info: TrackBitrateInfo): void;
     close(): void;
-    private setMungedLocalDescription;
+    private setMungedSDP;
 }
 export {};
 //# sourceMappingURL=PCTransport.d.ts.map

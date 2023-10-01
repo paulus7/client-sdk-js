@@ -1,7 +1,7 @@
 import LocalAudioTrack from './LocalAudioTrack';
 import type LocalTrack from './LocalTrack';
 import LocalVideoTrack from './LocalVideoTrack';
-import { AudioCaptureOptions, CreateLocalTracksOptions, ScreenShareCaptureOptions, VideoCaptureOptions } from './options';
+import type { AudioCaptureOptions, CreateLocalTracksOptions, ScreenShareCaptureOptions, VideoCaptureOptions } from './options';
 /**
  * Creates a local video and audio track at the same time. When acquiring both
  * audio and video tracks together, it'll display a single permission prompt to

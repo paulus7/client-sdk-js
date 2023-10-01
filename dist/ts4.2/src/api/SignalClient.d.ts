@@ -1,18 +1,13 @@
-import Queue from 'async-await-queue';
-import 'webrtc-adapter';
-import { ParticipantInfo, ReconnectReason, Room, SpeakerInfo, VideoLayer } from '../proto/livekit_models';
-import { AddTrackRequest, ConnectionQualityUpdate, JoinResponse, LeaveRequest, ReconnectResponse, SessionDescription, SignalRequest, SignalTarget, SimulateScenario, StreamStateUpdate, SubscribedQualityUpdate, SubscriptionPermissionUpdate, SyncState, TrackPermission, TrackPublishedResponse, TrackUnpublishedResponse, UpdateSubscription, UpdateTrackSettings } from '../proto/livekit_rtc';
-interface ConnectOpts {
-    autoSubscribe: boolean;
+import { ParticipantInfo, ReconnectReason, Room, SpeakerInfo, VideoLayer } from '../proto/livekit_models_pb';
+import { AddTrackRequest, ConnectionQualityUpdate, JoinResponse, LeaveRequest, ReconnectResponse, SessionDescription, SignalRequest, SignalTarget, SimulateScenario, StreamStateUpdate, SubscribedQualityUpdate, SubscriptionPermissionUpdate, SubscriptionResponse, SyncState, TrackPermission, TrackPublishedResponse, TrackUnpublishedResponse, UpdateSubscription, UpdateTrackSettings } from '../proto/livekit_rtc_pb';
+import { AsyncQueue } from '../utils/AsyncQueue';
+interface ConnectOpts extends SignalOptions {
     /** internal */
     reconnect?: boolean;
     /** internal */
     reconnectReason?: number;
     /** internal */
     sid?: string;
-    /** @deprecated */
-    publishOnly?: string;
-    adaptiveStream?: boolean;
 }
 export interface SignalOptions {
     autoSubscribe: boolean;
@@ -20,13 +15,15 @@ export interface SignalOptions {
     publishOnly?: string;
     adaptiveStream?: boolean;
     maxRetries: number;
+    e2eeEnabled: boolean;
+    websocketTimeout: number;
 }
 type SignalMessage = SignalRequest['message'];
 /** @internal */
 export declare class SignalClient {
     isConnected: boolean;
     isReconnecting: boolean;
-    requestQueue: Queue;
+    requestQueue: AsyncQueue;
     queuedRequests: Array<() => Promise<void>>;
     useJSON: boolean;
     /** signal rtt in milliseconds */
@@ -47,6 +44,7 @@ export declare class SignalClient {
     onStreamStateUpdate?: (update: StreamStateUpdate) => void;
     onSubscribedQualityUpdate?: (update: SubscribedQualityUpdate) => void;
     onSubscriptionPermissionUpdate?: (update: SubscriptionPermissionUpdate) => void;
+    onSubscriptionError?: (update: SubscriptionResponse) => void;
     onLocalTrackUnpublished?: (res: TrackUnpublishedResponse) => void;
     onTokenRefresh?: (token: string) => void;
     onLeave?: (leave: LeaveRequest) => void;
@@ -61,7 +59,9 @@ export declare class SignalClient {
     constructor(useJSON?: boolean);
     join(url: string, token: string, opts: SignalOptions, abortSignal?: AbortSignal): Promise<JoinResponse>;
     reconnect(url: string, token: string, sid?: string, reason?: ReconnectReason): Promise<ReconnectResponse | void>;
-    connect(url: string, token: string, opts: ConnectOpts, abortSignal?: AbortSignal): Promise<JoinResponse | ReconnectResponse | void>;
+    private connect;
+    /** @internal */
+    resetCallbacks: () => void;
     close(): Promise<void>;
     sendOffer(offer: RTCSessionDescriptionInit): void;
     sendAnswer(answer: RTCSessionDescriptionInit): Promise<void>;
@@ -83,6 +83,7 @@ export declare class SignalClient {
     sendRequest(message: SignalMessage, fromQueue?: boolean): Promise<void>;
     private handleSignalResponse;
     setReconnected(): void;
+    private handleOnClose;
     private handleWSError;
     /**
      * Resets the ping timeout and starts a new timeout.

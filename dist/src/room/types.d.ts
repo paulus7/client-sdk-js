@@ -22,5 +22,5 @@ export type LiveKitReactNativeInfo = {
     platform: 'ios' | 'android' | 'windows' | 'macos' | 'web' | 'native';
     devicePixelRatio: number;
 };
-export type SimulationScenario = 'signal-reconnect' | 'speaker' | 'node-failure' | 'server-leave' | 'migration' | 'resume-reconnect' | 'force-tcp' | 'force-tls' | 'full-reconnect';
+export type SimulationScenario = 'signal-reconnect' | 'speaker' | 'node-failure' | 'server-leave' | 'migration' | 'resume-reconnect' | 'force-tcp' | 'force-tls' | 'full-reconnect' | 'subscriber-bandwidth';
 //# sourceMappingURL=types.d.ts.map

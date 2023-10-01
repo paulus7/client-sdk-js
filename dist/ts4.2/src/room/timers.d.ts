@@ -7,7 +7,7 @@
 export default class CriticalTimers {
     static setTimeout: (callback: (args: void) => void, ms?: number | undefined) => NodeJS.Timeout;
     static setInterval: (callback: (args: void) => void, ms?: number | undefined) => NodeJS.Timer;
-    static clearTimeout: (timeoutId: NodeJS.Timeout) => void;
-    static clearInterval: (intervalId: NodeJS.Timeout) => void;
+    static clearTimeout: (timeoutId: string | number | NodeJS.Timeout | undefined) => void;
+    static clearInterval: (intervalId: string | number | NodeJS.Timeout | undefined) => void;
 }
 //# sourceMappingURL=timers.d.ts.map

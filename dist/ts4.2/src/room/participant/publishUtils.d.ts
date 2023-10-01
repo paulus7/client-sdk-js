@@ -1,6 +1,7 @@
 import LocalAudioTrack from '../track/LocalAudioTrack';
 import LocalVideoTrack from '../track/LocalVideoTrack';
-import { BackupVideoCodec, TrackPublishOptions, VideoCodec, VideoEncoding, VideoPreset } from '../track/options';
+import type { BackupVideoCodec, TrackPublishOptions, VideoCodec, VideoEncoding } from '../track/options';
+import { VideoPreset } from '../track/options';
 /** @internal */
 export declare function mediaTrackToLocalTrack(mediaStreamTrack: MediaStreamTrack, constraints?: MediaTrackConstraints): LocalVideoTrack | LocalAudioTrack;
 export declare const presets169: VideoPreset[];
@@ -16,4 +17,12 @@ export declare function presetsForResolution(isScreenShare: boolean, width: numb
 export declare function defaultSimulcastLayers(isScreenShare: boolean, original: VideoPreset): VideoPreset[];
 /** @internal */
 export declare function sortPresets(presets: Array<VideoPreset> | undefined): VideoPreset[] | undefined;
+/** @internal */
+export declare class ScalabilityMode {
+    spatial: number;
+    temporal: number;
+    suffix: undefined | 'h' | '_KEY' | '_KEY_SHIFT';
+    constructor(scalabilityMode: string);
+    toString(): string;
+}
 //# sourceMappingURL=publishUtils.d.ts.map

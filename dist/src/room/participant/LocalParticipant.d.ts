@@ -1,15 +1,14 @@
-import 'webrtc-adapter';
 import type { InternalRoomOptions } from '../../options';
-import { DataPacket_Kind, ParticipantInfo } from '../../proto/livekit_models';
-import { DataChannelInfo, TrackPublishedResponse } from '../../proto/livekit_rtc';
+import { DataPacket_Kind, ParticipantInfo, ParticipantPermission } from '../../proto/livekit_models_pb';
+import { DataChannelInfo, TrackPublishedResponse } from '../../proto/livekit_rtc_pb';
 import type RTCEngine from '../RTCEngine';
 import LocalTrack from '../track/LocalTrack';
 import LocalTrackPublication from '../track/LocalTrackPublication';
 import { Track } from '../track/Track';
-import { AudioCaptureOptions, BackupVideoCodec, CreateLocalTracksOptions, ScreenShareCaptureOptions, TrackPublishOptions, VideoCaptureOptions } from '../track/options';
+import type { AudioCaptureOptions, BackupVideoCodec, CreateLocalTracksOptions, ScreenShareCaptureOptions, TrackPublishOptions, VideoCaptureOptions } from '../track/options';
 import type { DataPublishOptions } from '../types';
 import Participant from './Participant';
-import { ParticipantTrackPermission } from './ParticipantTrackPermission';
+import type { ParticipantTrackPermission } from './ParticipantTrackPermission';
 import RemoteParticipant from './RemoteParticipant';
 export default class LocalParticipant extends Participant {
     audioTracks: Map<string, LocalTrackPublication>;
@@ -18,6 +17,8 @@ export default class LocalParticipant extends Participant {
     tracks: Map<string, LocalTrackPublication>;
     /** @internal */
     engine: RTCEngine;
+    /** @internal */
+    activeDeviceMap: Map<MediaDeviceKind, string>;
     private pendingPublishing;
     private pendingPublishPromises;
     private cameraError;
@@ -25,11 +26,13 @@ export default class LocalParticipant extends Participant {
     private participantTrackPermissions;
     private allParticipantsAllowedToSubscribe;
     private roomOptions;
+    private encryptionType;
     private reconnectFuture?;
     /** @internal */
     constructor(sid: string, identity: string, engine: RTCEngine, options: InternalRoomOptions);
     get lastCameraError(): Error | undefined;
     get lastMicrophoneError(): Error | undefined;
+    get isE2EEEnabled(): boolean;
     getTrack(source: Track.Source): LocalTrackPublication | undefined;
     getTrackByName(name: string): LocalTrackPublication | undefined;
     /**
@@ -41,13 +44,17 @@ export default class LocalParticipant extends Participant {
     private handleDisconnected;
     /**
      * Sets and updates the metadata of the local participant.
-     * Note: this requires `CanUpdateOwnMetadata` permission encoded in the token.
+     * The change does not take immediate effect.
+     * If successful, a `ParticipantEvent.MetadataChanged` event will be emitted on the local participant.
+     * Note: this requires `canUpdateOwnMetadata` permission.
      * @param metadata
      */
     setMetadata(metadata: string): void;
     /**
      * Sets and updates the name of the local participant.
-     * Note: this requires `CanUpdateOwnMetadata` permission encoded in the token.
+     * The change does not take immediate effect.
+     * If successful, a `ParticipantEvent.ParticipantNameChanged` event will be emitted on the local participant.
+     * Note: this requires `canUpdateOwnMetadata` permission.
      * @param metadata
      */
     setName(name: string): void;
@@ -70,6 +77,10 @@ export default class LocalParticipant extends Participant {
      * Resolves with a `LocalTrackPublication` instance if successful and `undefined` otherwise
      */
     setScreenShareEnabled(enabled: boolean, options?: ScreenShareCaptureOptions, publishOptions?: TrackPublishOptions): Promise<LocalTrackPublication | undefined>;
+    /** @internal */
+    setPermissions(permissions: ParticipantPermission): boolean;
+    /** @internal */
+    setE2EEEnabled(enabled: boolean): Promise<void>;
     /**
      * Enable or disable publishing for a track by source. This serves as a simple
      * way to manage the common tracks (camera, mic, or screen share).
@@ -107,7 +118,7 @@ export default class LocalParticipant extends Participant {
     publishAdditionalCodecForTrack(track: LocalTrack | MediaStreamTrack, videoCodec: BackupVideoCodec, options?: TrackPublishOptions): Promise<void>;
     unpublishTrack(track: LocalTrack | MediaStreamTrack, stopOnUnpublish?: boolean): Promise<LocalTrackPublication | undefined>;
     unpublishTracks(tracks: LocalTrack[] | MediaStreamTrack[]): Promise<LocalTrackPublication[]>;
-    republishAllTracks(options?: TrackPublishOptions): Promise<void>;
+    republishAllTracks(options?: TrackPublishOptions, restartTracks?: boolean): Promise<void>;
     /**
      * Publish a new data payload to the room. Data will be forwarded to each
      * participant in the room if the destination field in publishOptions is empty

@@ -1,6 +1,7 @@
-import { ClientInfo } from '../proto/livekit_models';
+import { ClientInfo } from '../proto/livekit_models_pb';
 import type LocalAudioTrack from './track/LocalAudioTrack';
 import type RemoteAudioTrack from './track/RemoteAudioTrack';
+import { VideoCodec } from './track/options';
 export declare const ddExtensionURI = "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension";
 export declare function unpackStreamId(packed: string): string[];
 export declare function sleep(duration: number): Promise<void>;
@@ -17,6 +18,7 @@ export declare function supportsSetSinkId(elm?: HTMLMediaElement): boolean;
 export declare function supportsSetCodecPreferences(transceiver: RTCRtpTransceiver): boolean;
 export declare function isBrowserSupported(): boolean;
 export declare function isFireFox(): boolean;
+export declare function isChromiumBased(): boolean;
 export declare function isSafari(): boolean;
 export declare function isMobile(): boolean;
 export declare function isWeb(): boolean;
@@ -74,7 +76,7 @@ export type AudioAnalyserOptions = {
 export declare function createAudioAnalyser(track: LocalAudioTrack | RemoteAudioTrack, options?: AudioAnalyserOptions): {
     calculateVolume: () => number;
     analyser: AnalyserNode;
-    cleanup: () => void;
+    cleanup: () => Promise<void>;
 };
 export declare class Mutex {
     private _locking;
@@ -83,4 +85,8 @@ export declare class Mutex {
     isLocked(): boolean;
     lock(): Promise<() => void>;
 }
+export declare function isVideoCodec(maybeCodec: string): maybeCodec is VideoCodec;
+export declare function unwrapConstraint(constraint: ConstrainDOMString): string;
+export declare function toWebsocketUrl(url: string): string;
+export declare function toHttpUrl(url: string): string;
 //# sourceMappingURL=utils.d.ts.map

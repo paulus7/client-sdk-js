@@ -21,9 +21,15 @@ export interface TrackPublishDefaults {
      */
     videoCodec?: VideoCodec;
     /**
-     * max audio bitrate, defaults to [[AudioPresets.speech]]
+     * max audio bitrate, defaults to [[AudioPresets.music]]
+     * @deprecated use `audioPreset` instead
      */
     audioBitrate?: number;
+    /**
+     * which audio preset should be used for publishing (audio) tracks
+     * defaults to [[AudioPresets.music]]
+     */
+    audioPreset?: AudioPreset;
     /**
      * dtx (Discontinuous Transmission of audio), enabled by default for mono tracks.
      */
@@ -33,7 +39,7 @@ export interface TrackPublishDefaults {
      */
     red?: boolean;
     /**
-     * stereo audio track. defaults determined by capture channel count.
+     * publish track in stereo mode (or set to false to disable). defaults determined by capture channel count.
      */
     forceStereo?: boolean;
     /**
@@ -48,10 +54,19 @@ export interface TrackPublishDefaults {
      */
     scalabilityMode?: ScalabilityMode;
     /**
-     * custom video simulcast layers for camera tracks, defaults to h180, h360
-     * You can specify up to two custom layers that will be used instead of
-     * the LiveKit default layers.
-     * Note: the layers need to be ordered from lowest to highest quality
+     * Up to two additional simulcast layers to publish in addition to the original
+     * Track.
+     * When left blank, it defaults to h180, h360.
+     * If a SVC codec is used (VP9 or AV1), this field has no effect.
+     *
+     * To publish three total layers, you would specify:
+     * {
+     *   videoEncoding: {...}, // encoding of the primary layer
+     *   videoSimulcastLayers: [
+     *     VideoPresets.h540,
+     *     VideoPresets.h216,
+     *   ],
+     * }
      */
     videoSimulcastLayers?: Array<VideoPreset>;
     /**
@@ -112,6 +127,13 @@ export interface ScreenShareCaptureOptions {
      * screenshare is limited: https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getDisplayMedia#browser_compatibility
      */
     audio?: boolean | AudioCaptureOptions;
+    /**
+     * only allows for 'true' and chrome allows for additional options to be passed in
+     * https://developer.chrome.com/docs/web-platform/screen-sharing-controls/#displaySurface
+     */
+    video?: true | {
+        displaySurface?: 'window' | 'browser' | 'monitor';
+    };
     /** capture resolution, defaults to full HD */
     resolution?: VideoResolution;
     /** a CaptureController object instance containing methods that can be used to further manipulate the capture session if included. */
@@ -180,35 +202,37 @@ export interface VideoResolution {
 export interface VideoEncoding {
     maxBitrate: number;
     maxFramerate?: number;
+    priority?: RTCPriorityType;
 }
 export declare class VideoPreset {
     encoding: VideoEncoding;
     width: number;
     height: number;
-    constructor(width: number, height: number, maxBitrate: number, maxFramerate?: number);
+    constructor(width: number, height: number, maxBitrate: number, maxFramerate?: number, priority?: RTCPriorityType);
     get resolution(): VideoResolution;
 }
 export interface AudioPreset {
     maxBitrate: number;
+    priority?: RTCPriorityType;
 }
-declare const codecs: readonly [
+declare const backupCodecs: readonly [
+    "vp8",
+    "h264"
+];
+export declare const videoCodecs: readonly [
     "vp8",
     "h264",
     "vp9",
     "av1"
 ];
-declare const backupCodecs: readonly [
-    "vp8",
-    "h264"
-];
-export type VideoCodec = (typeof codecs)[number];
+export type VideoCodec = (typeof videoCodecs)[number];
 export type BackupVideoCodec = (typeof backupCodecs)[number];
 export declare function isBackupCodec(codec: string): codec is BackupVideoCodec;
 export declare function isCodecEqual(c1: string | undefined, c2: string | undefined): boolean;
 /**
- * scalability modes for svc, only supprot l3t3 now.
+ * scalability modes for svc.
  */
-export type ScalabilityMode = 'L3T3';
+export type ScalabilityMode = 'L1T3' | 'L2T3' | 'L2T3_KEY' | 'L3T3' | 'L3T3_KEY';
 export declare namespace AudioPresets {
     const telephone: AudioPreset;
     const speech: AudioPreset;
@@ -249,6 +273,7 @@ export declare const ScreenSharePresets: {
     readonly h360fps3: VideoPreset;
     readonly h720fps5: VideoPreset;
     readonly h720fps15: VideoPreset;
+    readonly h720fps30: VideoPreset;
     readonly h1080fps15: VideoPreset;
     readonly h1080fps30: VideoPreset;
 };

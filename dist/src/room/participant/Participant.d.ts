@@ -1,5 +1,5 @@
 import type TypedEmitter from 'typed-emitter';
-import { DataPacket_Kind, ParticipantInfo, ParticipantPermission, ConnectionQuality as ProtoQuality } from '../../proto/livekit_models';
+import { DataPacket_Kind, ParticipantInfo, ParticipantPermission, ConnectionQuality as ProtoQuality, SubscriptionError } from '../../proto/livekit_models_pb';
 import type LocalTrackPublication from '../track/LocalTrackPublication';
 import type RemoteTrack from '../track/RemoteTrack';
 import type RemoteTrackPublication from '../track/RemoteTrackPublication';
@@ -33,6 +33,8 @@ export default class Participant extends Participant_base {
     lastSpokeAt?: Date | undefined;
     permissions?: ParticipantPermission;
     private _connectionQuality;
+    protected audioContext?: AudioContext;
+    get isEncrypted(): boolean;
     /** @internal */
     constructor(sid: string, identity: string, name?: string, metadata?: string);
     getTracks(): TrackPublication[];
@@ -58,21 +60,27 @@ export default class Participant extends Participant_base {
     get joinedAt(): Date | undefined;
     /** @internal */
     updateInfo(info: ParticipantInfo): boolean;
-    /** @internal */
-    setMetadata(md: string): void;
-    protected setName(name: string): void;
+    /**
+     * Updates metadata from server
+     **/
+    private _setMetadata;
+    private _setName;
     /** @internal */
     setPermissions(permissions: ParticipantPermission): boolean;
     /** @internal */
     setIsSpeaking(speaking: boolean): void;
     /** @internal */
     setConnectionQuality(q: ProtoQuality): void;
+    /**
+     * @internal
+     */
+    setAudioContext(ctx: AudioContext | undefined): void;
     protected addTrackPublication(publication: TrackPublication): void;
 }
 export type ParticipantEventCallbacks = {
     trackPublished: (publication: RemoteTrackPublication) => void;
     trackSubscribed: (track: RemoteTrack, publication: RemoteTrackPublication) => void;
-    trackSubscriptionFailed: (trackSid: string) => void;
+    trackSubscriptionFailed: (trackSid: string, reason?: SubscriptionError) => void;
     trackUnpublished: (publication: RemoteTrackPublication) => void;
     trackUnsubscribed: (track: RemoteTrack, publication: RemoteTrackPublication) => void;
     trackMuted: (publication: TrackPublication) => void;

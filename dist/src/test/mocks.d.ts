@@ -1,10 +1,11 @@
+import { MockedClass } from 'vitest';
 import { SignalClient } from '../api/SignalClient';
 import RTCEngine from '../room/RTCEngine';
 declare const mocks: {
-    SignalClient: jest.MockedClass<typeof SignalClient>;
-    RTCEngine: jest.MockedClass<typeof RTCEngine>;
+    SignalClient: MockedClass<typeof SignalClient>;
+    RTCEngine: MockedClass<typeof RTCEngine>;
     MockLocalVideoTrack: {
-        stop: jest.Mock<any, any, any>;
+        stop: import("@vitest/spy").Mock<any, any>;
     };
 };
 export default mocks;

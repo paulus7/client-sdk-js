@@ -1,6 +1,7 @@
 import type TypedEmitter from 'typed-emitter';
+import 'webrtc-adapter';
 import type { InternalRoomOptions, RoomConnectOptions, RoomOptions } from '../options';
-import { DataPacket_Kind, DisconnectReason, ParticipantPermission } from '../proto/livekit_models';
+import { DataPacket_Kind, DisconnectReason, ParticipantPermission, SubscriptionError } from '../proto/livekit_models_pb';
 import RTCEngine from './RTCEngine';
 import LocalParticipant from './participant/LocalParticipant';
 import type Participant from './participant/Participant';
@@ -44,6 +45,8 @@ declare class Room extends Room_base {
     localParticipant: LocalParticipant;
     /** options of room */
     options: InternalRoomOptions;
+    /** reflects the sender encryption status of the local participant */
+    isE2EEEnabled: boolean;
     private roomInfo?;
     private identityToSid;
     /** connect options of room */
@@ -55,12 +58,21 @@ declare class Room extends Room_base {
     /** future holding client initiated connection attempt */
     private connectFuture?;
     private disconnectLock;
+    private e2eeManager;
     private cachedParticipantSids;
+    private connectionReconcileInterval?;
+    private regionUrlProvider?;
+    private regionUrl?;
     /**
      * Creates a new Room, the primary construct for a LiveKit session.
      * @param options
      */
     constructor(options?: RoomOptions);
+    /**
+     * @experimental
+     */
+    setE2EEEnabled(enabled: boolean): Promise<void>;
+    private setupE2EE;
     /**
      * if the current room has a participant with `recorder: true` in its JWT grant
      **/
@@ -84,14 +96,15 @@ declare class Room extends Room_base {
      */
     static getLocalDevices(kind?: MediaDeviceKind, requestPermissions?: boolean): Promise<MediaDeviceInfo[]>;
     /**
-     * prepares the connection to the livekit server by sending a HEAD request in order to
-     * 1. speed up DNS resolution
-     * 2. speed up TLS setup
-     * on the actual connection request
-     * throws an error if server is not reachable after the request timeout
-     * @experimental
+     * prepareConnection should be called as soon as the page is loaded, in order
+     * to speed up the connection attempt. This function will
+     * - perform DNS resolution and pre-warm the DNS cache
+     * - establish TLS connection and cache TLS keys
+     *
+     * With LiveKit Cloud, it will also determine the best edge data center for
+     * the current client to connect to if a token is provided.
      */
-    prepareConnection(url: string): Promise<void>;
+    prepareConnection(url: string, token?: string): Promise<void>;
     connect: (url: string, token: string, opts?: RoomConnectOptions) => Promise<void>;
     private connectSignal;
     private applyJoinResponse;
@@ -110,7 +123,7 @@ declare class Room extends Room_base {
     /**
      * @internal for testing
      */
-    simulateScenario(scenario: SimulationScenario): Promise<void>;
+    simulateScenario(scenario: SimulationScenario, arg?: any): Promise<void>;
     private onPageLeave;
     /**
      * Browsers have different policies regarding audio playback. Most requiring
@@ -126,12 +139,11 @@ declare class Room extends Room_base {
     get canPlaybackAudio(): boolean;
     /**
      * Returns the active audio output device used in this room.
-     *
-     * Note: to get the active `audioinput` or `videoinput` use [[LocalTrack.getDeviceId()]]
-     *
      * @return the previously successfully set audio output device ID or an empty string if the default device is used.
+     * @deprecated use `getActiveDevice('audiooutput')` instead
      */
     getActiveAudioOutputDevice(): string;
+    getActiveDevice(kind: MediaDeviceKind): string | undefined;
     /**
      * Switches all active devices used in this room to the given device.
      *
@@ -142,7 +154,7 @@ declare class Room extends Room_base {
      *  `audiooutput` to set speaker for all incoming audio tracks
      * @param deviceId
      */
-    switchActiveDevice(kind: MediaDeviceKind, deviceId: string, exact?: boolean): Promise<void>;
+    switchActiveDevice(kind: MediaDeviceKind, deviceId: string, exact?: boolean): Promise<boolean>;
     private setupLocalParticipantEvents;
     private recreateEngine;
     private onTrackAdded;
@@ -155,6 +167,7 @@ declare class Room extends Room_base {
     private handleSpeakersChanged;
     private handleStreamStateUpdate;
     private handleSubscriptionPermissionUpdate;
+    private handleSubscriptionError;
     private handleDataPacket;
     private handleAudioPlaybackStarted;
     private handleAudioPlaybackFailed;
@@ -170,6 +183,8 @@ declare class Room extends Room_base {
      * subscription settings.
      */
     private updateSubscriptions;
+    private registerConnectionReconcile;
+    private clearConnectionReconcile;
     private setAndEmitConnectionState;
     private emitWhenConnected;
     private onLocalParticipantMetadataChanged;
@@ -203,7 +218,7 @@ export type RoomEventCallbacks = {
     participantDisconnected: (participant: RemoteParticipant) => void;
     trackPublished: (publication: RemoteTrackPublication, participant: RemoteParticipant) => void;
     trackSubscribed: (track: RemoteTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => void;
-    trackSubscriptionFailed: (trackSid: string, participant: RemoteParticipant) => void;
+    trackSubscriptionFailed: (trackSid: string, participant: RemoteParticipant, reason?: SubscriptionError) => void;
     trackUnpublished: (publication: RemoteTrackPublication, participant: RemoteParticipant) => void;
     trackUnsubscribed: (track: RemoteTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => void;
     trackMuted: (publication: TrackPublication, participant: Participant) => void;
@@ -225,6 +240,9 @@ export type RoomEventCallbacks = {
     audioPlaybackChanged: (playing: boolean) => void;
     signalConnected: () => void;
     recordingStatusChanged: (recording: boolean) => void;
+    participantEncryptionStatusChanged: (encrypted: boolean, participant?: Participant) => void;
+    encryptionError: (error: Error) => void;
     dcBufferStatusChanged: (isLow: boolean, kind: DataPacket_Kind) => void;
+    activeDeviceChanged: (kind: MediaDeviceKind, deviceId: string) => void;
 };
 //# sourceMappingURL=Room.d.ts.map
