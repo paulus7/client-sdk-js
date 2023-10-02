@@ -20868,10 +20868,9 @@ class LocalParticipant extends Participant {
     // if server's track mute status doesn't match actual, we'll have to update
     // the server's copy
     info.tracks.forEach(ti => {
-      var _a, _b;
       const pub = this.tracks.get(ti.sid);
       if (pub) {
-        const mutedOnServer = pub.isMuted || ((_b = (_a = pub.track) === null || _a === void 0 ? void 0 : _a.isUpstreamPaused) !== null && _b !== void 0 ? _b : false);
+        const mutedOnServer = pub.isMuted;
         if (mutedOnServer !== ti.muted) {
           livekitLogger.debug('updating server mute state after reconcile', {
             sid: ti.sid,
