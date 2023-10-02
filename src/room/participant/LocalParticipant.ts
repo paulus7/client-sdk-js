@@ -1163,7 +1163,7 @@ export default class LocalParticipant extends Participant {
       const pub = this.tracks.get(ti.sid);
 
       if (pub) {
-        const mutedOnServer = pub.isMuted || (pub.track?.isUpstreamPaused ?? false);
+        const mutedOnServer = pub.isMuted;
         if (mutedOnServer !== ti.muted) {
           log.debug('updating server mute state after reconcile', {
             sid: ti.sid,
